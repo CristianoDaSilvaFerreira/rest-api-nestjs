@@ -3,14 +3,20 @@ import { UserRole } from './../users/Enum/users.service';
 import { User } from './../users/entities/user.entity';
 import { CreateUserDto } from './../users/dtos/create-user.dto';
 import { UserRepository } from './../users/repository/users.repository';
-import { Injectable, UnauthorizedException, UnprocessableEntityException } from '@nestjs/common';
+import { 
+    Injectable, 
+    UnauthorizedException, 
+    UnprocessableEntityException 
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(UserRepository)
     private userRepository: UserRepository,
+    private jwtService: JwtService,
   ) {}
 
   //   Método para criação de usuário comum
@@ -29,5 +35,12 @@ export class AuthService {
     if (user === null) {
       throw new UnauthorizedException('Credenciais inválidas');
     }
+
+    const jwtPayload = {
+        id: user.id,
+      };
+      const token = await this.jwtService.sign(jwtPayload);
+  
+      return { token };
   }
 }

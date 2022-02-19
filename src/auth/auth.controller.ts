@@ -1,3 +1,4 @@
+import { CredentialsDto } from './../users/dtos/credentials.dto';
 import { CreateUserDto } from './../users/dtos/create-user.dto';
 import { AuthService } from './auth.service';
 import { Body, Controller, Post, ValidationPipe } from '@nestjs/common';
@@ -6,6 +7,7 @@ import { Body, Controller, Post, ValidationPipe } from '@nestjs/common';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  //   Endpoint de Sign-Up
   @Post('/signup')
   async signUp(
     @Body(ValidationPipe) createUserDto: CreateUserDto,
@@ -14,5 +16,13 @@ export class AuthController {
     return {
       message: 'Cadastro realizado com sucesso',
     };
+  }
+
+  //   Endpoint de Sign-In
+  @Post('/signin')
+  async signIn(
+    @Body(ValidationPipe) credentiaslsDto: CredentialsDto,
+  ): Promise<{ token: string }> {
+    return await this.authService.signIn(credentiaslsDto);
   }
 }
