@@ -1,7 +1,10 @@
+import { GetUser } from './get-user.decorator';
+import { User } from './../users/entities/user.entity';
 import { CredentialsDto } from './../users/dtos/credentials.dto';
 import { CreateUserDto } from './../users/dtos/create-user.dto';
 import { AuthService } from './auth.service';
-import { Body, Controller, Post, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards, ValidationPipe } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
 export class AuthController {
@@ -24,5 +27,12 @@ export class AuthController {
     @Body(ValidationPipe) credentiaslsDto: CredentialsDto,
   ): Promise<{ token: string }> {
     return await this.authService.signIn(credentiaslsDto);
+  }
+
+  //   Endpoint /me que retornar um usuário autenticado
+  @Get('/me')
+  @UseGuards(AuthGuard())
+  getMe(@GetUser() user: User): User {
+    return user;
   }
 }
