@@ -6,6 +6,8 @@ import {
   Body,
   ValidationPipe,
   UseGuards,
+  Get,
+  Param,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -18,6 +20,7 @@ import { UserRole } from './Enum/user-roles.enum';
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
+  // Endpoint de criação de usuários
   @Post()
   @Role(UserRole.ADMIN)
   async createAdminUser(
@@ -27,6 +30,17 @@ export class UsersController {
     return {
       user,
       message: 'Administrador cadastrado com sucesso',
+    };
+  }
+
+  // Endpoint de buscar de usuários
+  @Get(':id')
+  @Role(UserRole.ADMIN)
+  async findUserById(@Param('id') id): Promise<ReturnUserDto> {
+    const user = await this.usersService.findUserById(id);
+    return {
+      user,
+      message: 'Usuário encontrado',
     };
   }
 }
