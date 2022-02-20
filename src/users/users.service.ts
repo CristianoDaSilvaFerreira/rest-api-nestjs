@@ -1,4 +1,4 @@
-import { UserRole } from './Enum/users.service';
+import { UserRole } from './Enum/user-roles.enum';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { UserRepository } from './repository/users.repository';

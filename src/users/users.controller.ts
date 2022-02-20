@@ -1,16 +1,25 @@
-import { AuthGuard } from '@nestjs/passport';
-import { ReturnUserDto } from './dtos/return-users.dto';
 import { CreateUserDto } from './dtos/create-user.dto';
+import { ReturnUserDto } from './dtos/return-users.dto';
+import {
+  Controller,
+  Post,
+  Body,
+  ValidationPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from './users.service';
-import { Body, Controller, Post, UseGuards, ValidationPipe } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+import { RolesGuard } from '../auth/roles.guard';
+import { Role } from '../auth/role.decorator';
+import { UserRole } from './Enum/user-roles.enum';
 
 @Controller('users')
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
-  // Endpoint de criação de usuários administrador 
   @Post()
-  @UseGuards(AuthGuard())
+  @Role(UserRole.ADMIN)
+  @UseGuards(AuthGuard(), RolesGuard)
   async createAdminUser(
     @Body(ValidationPipe) createUserDto: CreateUserDto,
   ): Promise<ReturnUserDto> {
