@@ -55,4 +55,14 @@ export class UsersService {
       );
     }
   }
+
+  // Endpoint de deleção de usuários
+  async deleteUser(userId: string) {
+    const result = await this.userRepository.delete({ id: userId });
+    if (result.affected === 0) {
+      throw new NotFoundException(
+        'Não foi encontrado um usuário com o ID informado',
+      );
+    }
+  }
 }
