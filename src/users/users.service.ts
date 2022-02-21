@@ -1,3 +1,4 @@
+import { FindUsersQueryDto } from './dtos/find-users-query.dto';
 import { UpdateUserDto } from './dtos/update-users.dto';
 import { UserRole } from './Enum/user-roles.enum';
 import { User } from './entities/user.entity';
@@ -65,4 +66,13 @@ export class UsersService {
       );
     }
   }
+
+  // Endpoint de pesquisar com filtro de usuário
+  async findUsers(
+    queryDto: FindUsersQueryDto,
+  ): Promise<{ users: User[]; total: number }> {
+    const users = await this.userRepository.findUsers(queryDto);
+    return users;
+  }
+
 }

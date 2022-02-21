@@ -1,3 +1,4 @@
+import { FindUsersQueryDto } from './dtos/find-users-query.dto';
 import { UpdateUserDto } from './dtos/update-users.dto';
 import { User } from './entities/user.entity';
 import { GetUser } from './../auth/get-user.decorator';
@@ -14,6 +15,7 @@ import {
   Patch,
   ForbiddenException,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { AuthGuard } from '@nestjs/passport';
@@ -73,6 +75,17 @@ export class UsersController {
     await this.usersService.deleteUser(id);
     return {
       message: 'Usuário removido com sucesso',
+    };
+  }
+
+  // Endpoint de pesquisar
+  @Get()
+  @Role(UserRole.ADMIN)
+  async findUsers(@Query() query: FindUsersQueryDto) {
+    const found = await this.usersService.findUsers(query);
+    return {
+      found,
+      message: 'Usuários encontrados',
     };
   }
 }
