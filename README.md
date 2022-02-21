@@ -18,7 +18,7 @@ O NestJS é um framework back-end que auxilia o desenvolvimento de aplicações 
 
 O projeto estar no meu Github
 
-:muscle:  Contribuir
+:muscle: Contribuir
 
 ```bash
 # Clonando projeto
@@ -40,7 +40,7 @@ $ git commit -m "Corrigindo...."
 $ git push origin minha-alteracao
 ```
 
-#### &#x20;Os requisitos de nossa API <a href="#f3ef" id="f3ef"></a>
+#### Os requisitos de nossa API <a href="#f3ef" id="f3ef"></a>
 
 A ideia é que ao final dessa série tenhamos um projeto com as seguintes funcionalidades:
 
@@ -110,13 +110,13 @@ services:
     image: postgres:alpine
     ports:
       - '5432:5432'
-    container_name: 'restapi'
+    container_name: 'postgres'
     restart: always
     volumes:
       - pg-data:/var/lib/postgresql/data
     environment:
-      POSTGRES_USER: pguserapi
-      POSTGRES_PASSWORD: pgpasswordapi
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
 
   adminer:
     image: adminer
@@ -136,7 +136,7 @@ Adicionei um container rodando o [adminer](https://hub.docker.com/\_/adminer). A
 $ docker-compose up -d
 ```
 
-Caso ainda não tenha o `container` do `Docker` com a imagem do `Postgres`, o comando poderá demora, pois estará fazendo download da imagem no servidor. Após a finalização dele vamos acessar o adminer em [http://localhost:8080/](http://localhost:8080). Selecione o sistema **PostgreSQL**, informe o servidor, que no caso será o nome que demos ao nosso container: **restapi**. Informe o nome de usuário e senha, **pguserapi** e **pgpasswordapi** respectivamente. Caso tenha substituído estes parâmetros em seu arquivo docker-compose.yml certifique-se de substituí-los aqui também. Clique em **Entrar.**
+Caso ainda não tenha o `container` do `Docker` com a imagem do `Postgres`, o comando poderá demora, pois estará fazendo download da imagem no servidor. Após a finalização dele vamos acessar o adminer em [http://localhost:8080/](http://localhost:8080). Selecione o sistema **PostgreSQL**, informe o servidor, que no caso será o nome que demos ao nosso container: **postgres**. Informe o nome de usuário e senha, **postgres** e **postgres** respectivamente. Caso tenha substituído estes parâmetros em seu arquivo `docker-compose.yml` certifique-se de substituí-los aqui também. Clique em **Entrar.**
 
 Será redirecionado para a página de gerenciamento de banco de dados. Nela, clique em “Criar Base de dados” e crie o banco de dados **restnestjs.**
 
@@ -170,7 +170,7 @@ export class AppModule {}
 
 Ficará com essa estrutura
 
-![](<.gitbook/assets/image (4).png>)
+![](<.gitbook/assets/image (4) (1).png>)
 
 **Dentro da pasta src vamos criar uma pasta configs e dentro dela vamos criar o arquivo \_typeorm.config.ts**\_**:**
 
@@ -306,7 +306,6 @@ import { Module } from '@nestjs/common';
     imports: [TypeOrmModule.forFeature([UserRepository])]
 })
 export class UsersModule {}
-
 ```
 
 Criar a camada de serviço do módulo, responsável por tratar da lógica básica por trás da execução de nossos endpoints.
@@ -490,7 +489,7 @@ Agora testando o endpoint nesse caso estarei usando o Insomnia, mas pode usar o 
 
 Obterá uma resposta do tipo
 
-![](<.gitbook/assets/image (5).png>)
+![](<.gitbook/assets/image (5) (1).png>)
 
 E se acessar o Adminer também podemos conferir que nosso usuário foi salvo no banco de dados.
 
@@ -580,7 +579,7 @@ export class UsersController {
 }
 ```
 
-![](<.gitbook/assets/image (3) (1).png>)
+![](<.gitbook/assets/image (3) (1) (1).png>)
 
 #### 400 Bad Request
 
@@ -622,10 +621,9 @@ import { AuthService } from './auth.service';
   providers: [AuthService]
 })
 export class AuthModule {}
-
 ```
 
-Com o `UserRepository` adicionado podemos criar nosso método para criação de um usuário comum em `auth.service.ts`:&#x20;
+Com o `UserRepository` adicionado podemos criar nosso método para criação de um usuário comum em `auth.service.ts`:
 
 ```
 constructor(
@@ -706,16 +704,54 @@ async checkCredentials(credentialsDto: CredentialsDto): Promise<User> {
 * Adicionar o método de login ao `auth.service.ts`:
 
 ```ts
-async signIn(credentialsDto: CredentialsDto) {
+import { CredentialsDto } from './../users/dtos/credentials.dto';
+import { UserRole } from './../users/Enum/users.service';
+import { User } from './../users/entities/user.entity';
+import { CreateUserDto } from './../users/dtos/create-user.dto';
+import { UserRepository } from './../users/repository/users.repository';
+import { 
+    Injectable, 
+    UnauthorizedException, 
+    UnprocessableEntityException 
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { JwtService } from '@nestjs/jwt';
+
+@Injectable()
+export class AuthService {
+  constructor(
+    @InjectRepository(UserRepository)
+    private userRepository: UserRepository,
+    private jwtService: JwtService,
+  ) {}
+
+  //   Método para criação de usuário comum
+  async signUp(createUserDto: CreateUserDto): Promise<User> {
+    if (createUserDto.password != createUserDto.passwordConfirmation) {
+      throw new UnprocessableEntityException('As senhas não conferem');
+    } else {
+      return await this.userRepository.createUser(createUserDto, UserRole.USER);
+    }
+  }
+
+  //   Método de criação de usuário com credenciais
+  async signIn(credentialsDto: CredentialsDto) {
     const user = await this.userRepository.checkCredentials(credentialsDto);
 
     if (user === null) {
       throw new UnauthorizedException('Credenciais inválidas');
     }
-  }
-```
 
-- ***
+    const jwtPayload = {
+        id: user.id,
+      };
+      const token = await this.jwtService.sign(jwtPayload);
+  
+      return { token };
+  }
+}
+
+```
 
 ```
 $ npm i --save passport passport-jwt @nestjs/jwt @nestjs/passport
@@ -758,11 +794,11 @@ JwtModule.register({
 
 Inicializar o servidor e testar o login
 
-![](<.gitbook/assets/image (3).png>)
+![Testando o endpoint para buscar do usuário autenticado](<.gitbook/assets/image (9).png>)
 
 * Criar um endpoint para que um usuário autenticado consiga obter seus próprios dados de cadastro da API.
 
-Primeiramente,  criar uma estratégia de validação, criando o arquivo `jwt.strategy.ts` __ dentro do módulo **auth**:
+Primeiramente, criar uma estratégia de validação, criando o arquivo `jwt.strategy.ts` \_\_ dentro do módulo **auth**:
 
 ```
 import { CredentialsDto } from './../users/dtos/credentiais.dto';
@@ -793,10 +829,9 @@ export class AuthController {
     return await this.authService.signIn(credentiaslsDto);
   }
 }
-
 ```
 
-Basicamente  foi criar uma estratégia para autenticação JWT onde, ao identificar um token no cabeçalho da requisição, irá validá-lo e extrair dele o id do usuário que enviou a requisição. Com o id do usuário  buscará os dados referentes a ele no banco de dados e retornar essa entidade ao final da validação do token.
+Basicamente foi criar uma estratégia para autenticação JWT onde, ao identificar um token no cabeçalho da requisição, irá validá-lo e extrair dele o id do usuário que enviou a requisição. Com o id do usuário buscará os dados referentes a ele no banco de dados e retornar essa entidade ao final da validação do token.
 
 Deixar essa nossa estratégia visível para todo o módulo, além de exportá-la para outros módulos utilizarem quando necessitarem de autenticação. Para isso modificaremos o `auth.module.ts`:
 
@@ -828,9 +863,9 @@ Deixar essa nossa estratégia visível para todo o módulo, além de exportá-la
   }
 ```
 
-Usando  o `@UseGuards()`_. Que_ é o responsável por incluir Guards a um endpoint, que nada mais são do que uma forma de restringir o acesso ao recurso. Nesse caso utilizando o  `AuthGuard()`, que já nos é fornecida pelos pactes que instalamos anteriormente.
+Usando o `@UseGuards()`_. Que_ é o responsável por incluir Guards a um endpoint, que nada mais são do que uma forma de restringir o acesso ao recurso. Nesse caso utilizando o `AuthGuard()`, que já nos é fornecida pelos pactes que instalamos anteriormente.
 
-Repare que ao buscar os dados do usuário dentro da requisição que chega ao **controller**. Por padrão os dados do usuário autenticado, conforme retornado pelo método `validate` __ no _j_`wt.strategy.ts`, são adicionados à requisição dentro da chave `user`_._ Para entender mais sobre **Guards**, pode acessar a [documentação](https://docs.nestjs.com/guards).
+Repare que ao buscar os dados do usuário dentro da requisição que chega ao **controller**. Por padrão os dados do usuário autenticado, conforme retornado pelo método `validate` \_\_ no _j_`wt.strategy.ts`, são adicionados à requisição dentro da chave `user`_._ Para entender mais sobre **Guards**, pode acessar a [documentação](https://docs.nestjs.com/guards).
 
 Podemos substituir isso por um simples decorator. Fazendo isso, criando dentro do módulo **auth** o arquivo `get-user.decorator.ts`_:_
 
@@ -847,7 +882,9 @@ export const GetUser = createParamDecorator(
 ```
 {% endcode %}
 
-**Uma observação:** Com o **Nest 7.0.0** houve uma alteração no formato da requisição. Sendo assim, nosso `get-user.decorator.ts` __ fica assim agora:
+#### **Uma observação**
+
+Com o **Nest 7.0.0** houve uma alteração no formato da requisição. Sendo assim, nosso `get-user.decorator.ts` \_\_ fica assim agora:
 
 ```
 import { User } from './../users/entities/user.entity';
@@ -862,6 +899,490 @@ export const GetUser = createParamDecorator(
 ```
 
 Em ambos os casos o decorator nada mais faz do que retornar o objeto do usuário de dentro da requisição. Podemos agora incluí-lo no `auth.controller.ts:`
+
+```
+import { GetUser } from './get-user.decorator';
+import { User } from './../users/entities/user.entity';
+import { CredentialsDto } from './../users/dtos/credentials.dto';
+import { CreateUserDto } from './../users/dtos/create-user.dto';
+import { AuthService } from './auth.service';
+import { Body, Controller, Get, Post, Req, UseGuards, ValidationPipe } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
+
+@Controller('auth')
+export class AuthController {
+  constructor(private authService: AuthService) {}
+
+  //   Endpoint de Sign-Up
+  @Post('/signup')
+  async signUp(
+    @Body(ValidationPipe) createUserDto: CreateUserDto,
+  ): Promise<{ message: string }> {
+    await this.authService.signUp(createUserDto);
+    return {
+      message: 'Cadastro realizado com sucesso',
+    };
+  }
+
+  //   Endpoint de Sign-In
+  @Post('/signin')
+  async signIn(
+    @Body(ValidationPipe) credentiaslsDto: CredentialsDto,
+  ): Promise<{ token: string }> {
+    return await this.authService.signIn(credentiaslsDto);
+  }
+
+  //   Endpoint /me que retornar um usuário autenticado
+  @Get('/me')
+  @UseGuards(AuthGuard())
+  getMe(@GetUser() user: User): User {
+    return user;
+  }
+}
+```
+
+![](<.gitbook/assets/image (7).png>)
+
+#### Atenção&#x20;
+
+Ao detalhe importante: Na aba **“`Bearer`”** devemos informar nosso token no campo indicado. O token informado deve ser aquele obtido ao se realizar uma requisição para o enpoint de login.
+
+Convém também protegermos endpoint de criação de usuários administradores para que apenas usuários autenticados possam criar novos administradores:
+
+```
+import { PassportModule } from '@nestjs/passport';
+import { UserRepository } from './repository/users.repository';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Module } from '@nestjs/common';
+import { UsersService } from './users.service';
+import { UsersController } from './users.controller';
+
+@Module({
+    imports: [
+        TypeOrmModule.forFeature([UserRepository]),
+        PassportModule.register({ defaultStrategy: 'jwt' }),
+    ],
+    providers: [UsersService],
+    controllers: [UsersController],
+})
+export class UsersModule {}
+```
+
+Primeiro  adicionar o módulo do `Passport` ao nosso módulo **users** adicionando o import do módulo no nosso `users.module.ts`_._
+
+Feito isso adicionamos o decorator `@UseGuards()` __ no endpoint de criação de usuários administradores, passando o guard `AuthGuard()` como parâmetro. Vamos agora tentar criar um administrador sem estarmos autenticados:
+
+```
+@Post()
+  @UseGuards(AuthGuard())
+  async createAdminUser(
+    @Body(ValidationPipe) createUserDto: CreateUserDto,
+  ): Promise<ReturnUserDto> {
+    const user = await this.usersService.createAdminUser(createUserDto);
+    return {
+      user,
+      message: 'Administrador cadastrado com sucesso',
+    };
+  }
+```
+
+Primeiro foi adicionado o módulo do `Passport` ao nosso módulo **users** adicionando o import do módulo no nosso _users.module.ts._
+
+Feito isso adicionar o decorator `@UseGuards()` __ no endpoint de criação de usuários administradores, passando o guard `AuthGuard()` como parâmetro. Vamos agora tentar criar um administrador sem estarmos autenticados:
+
+![](<.gitbook/assets/image (10).png>)
+
+#### 401 Unauthorized
+
+O código de resposta de status de erro do cliente HTTP **`401 Unauthorized`**  indica que a solicitação não foi aplicada porque não possui credenciais de autenticação válidas para o recurso de destino.
+
+Esse status é enviado com um cabeçalho [`WWW-Authenticate`](https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Headers/WWW-Authenticate) que contém informações sobre como autorizar corretamente.
+
+Esse status é semelhante a [`403`](https://developer.mozilla.org/pt-BR/docs/Web/HTTP/Status/403), mas neste caso, a autenticação é possível.
+
+* Mudando o tipo de autenticação para “Bearer Token” e incluindo o token:
+
+![](<.gitbook/assets/image (13).png>)
+
+### Autorização <a href="#47ed" id="47ed"></a>
+
+Analisando  _endpoint_ de criação de usuários administradores:
+
+Não seria interessante que apenas administradores pudessem criar outros administradores? Afinal, não queremos que nossos usuários comuns saiam alterando informações sensíveis do sistema.
+
+Para isso precisamos realizar uma validação de **autorização.**
+
+Diferente da **autenticação,** que é um meio do usuário provar que ele é quem ele diz ser, a **autorização** é o que define o que um usuário, já autenticado, pode ou não fazer.
+
+Para implementar um sistema de autorização vamos seguir a recomendação da própria documentação do **NestJS** e utilizar [Guards](https://docs.nestjs.com/guards). Dentro de **auth** vamos criar a `guard roles.guard.ts`_:_
+
+```
+import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import { Observable } from 'rxjs';
+import { Reflector } from '@nestjs/core';
+
+@Injectable()
+export class RolesGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
+  canActivate(
+    context: ExecutionContext,
+  ): boolean | Promise<boolean> | Observable<boolean> {
+    const request = context.switchToHttp().getRequest();
+    const userRole = request.user.role;
+    const requiredRole = this.reflector.get<string>(
+      'role',
+      context.getHandler(),
+    );
+
+    if (!requiredRole) return true;
+
+    return userRole === requiredRole;
+  }
+}
+```
+
+Para que isso funcione precisamos colocar essa informação lá antes de realizarmos essa verificação.&#x20;
+
+* Criar um decorator para isso, também dentro de **auth**:
+
+```
+import { SetMetadata } from '@nestjs/common';
+
+export const Role = (role: string) => SetMetadata('role', role);
+```
+
+A função desse decorator é bem simples: ele irá receber como parâmetro um perfil de usuário armazenar ele nos metadados.
+
+E com isso o sistema de autorização por perfil já está pronto.
+
+* Adicionar nossa `RolesGuard` ao nosso endpoint de criação de usuários administradores:
+
+```
+  @Post()
+  @Role(UserRole.ADMIN)
+  @UseGuards(AuthGuard())
+  async createAdminUser(
+    @Body(ValidationPipe) createUserDto: CreateUserDto,
+  ): Promise<ReturnUserDto> {
+    const user = await this.usersService.createAdminUser(createUserDto);
+    return {
+      user,
+      message: 'Administrador cadastrado com sucesso',
+    };
+  }
+```
+
+![](<.gitbook/assets/image (12).png>)
+
+* Agora fazendo login com um usuário administrador:
+
+![](<.gitbook/assets/image (3).png>)
+
+Como foi criado um módulo **auth** para tratar da criação de conta de usuários comuns e login todas as outras operações referentes a usuários no módulo **users** vão ser protegidas por autenticação e também por autorização. Para isso, ao invés de protegermos endpoint por endpoint da aplicação, pode-se colocar o decorator `@UseGuards` __ junto ao nosso decorator __ `@Controller(‘users’)` __ ficando da seguinte forma:
+
+```
+@Controller('users')
+@UseGuards(AuthGuard(), RolesGuard)
+export class UsersController {
+  constructor(private usersService: UsersService) {}
+
+  @Post()
+  @Role(UserRole.ADMIN)
+  async createAdminUser(
+    @Body(ValidationPipe) createUserDto: CreateUserDto,
+  ): Promise<ReturnUserDto> {
+    const user = await this.usersService.createAdminUser(createUserDto);
+    return {
+      user,
+      message: 'Administrador cadastrado com sucesso',
+    };
+  }
+}
+```
+
+## Buscar dados de um usuário por ID <a href="#f87e" id="f87e"></a>
+
+Endpoint  para buscar um usuário com o ID informado como parâmetro na URI.
+
+* Primeiro  criar o método no nosso `users.service.ts`:
+
+```
+async findUserById(userId: string): Promise<User> {
+    const user = await this.userRepository.findOne(userId, {
+      select: ['email', 'name', 'role', 'id'],
+    });
+
+    if (!user) throw new NotFoundException('Usuário não encontrado');
+
+    return user;
+  }
+```
+
+* Chamar esse método de dentro controller, criando um endpoint:
+
+```
+@Get(':id')
+  @Role(UserRole.ADMIN)
+  async findUserById(@Param('id') id): Promise<ReturnUserDto> {
+    const user = await this.usersService.findUserById(id);
+    return {
+      user,
+      message: 'Usuário encontrado',
+    };
+  }
+```
+
+
+
+#### Alguns detalhes para se observar:
+
+* Foi utilizado o decorator `@Get`. Isso por que o método que utilizaremos para acessar esse endpoint será o **GET**. Utilizaand diferentes métodos (ou verbos) HTTP, visto que cada um é um indicador da ação que será realizada pelo endpoint, seguindo boas práticas para construção de APIs.
+* Passamos a string **‘:id’** como parâmetro para o decorator @Get. Isso indica que a API espera receber um parâmetro na url e esse parâmetro poderá ser acessado pelo identificador ‘id’.
+* No nosso método **findUserById** passamos como primeiro parâmetro o id informado na url, e pudemos obter esse valor utilizando o decorator `@Param`, passando como argumento o nome que utilizamos no decorator do método.
+
+![](<.gitbook/assets/image (4).png>)
+
+## Alterar dados de um usuário <a href="#0216" id="0216"></a>
+
+Endpoint irá alterar os dados de um usuário já cadastrado. Para isso, primeiro criar um DTO para representar o conjunto de dados de um usuário que poderão ser alterados.&#x20;
+
+* Na pasta **dto** dentro de **users** vamos criar o `update-users.dto.ts`_:_
+
+```
+import { UserRole } from './../Enum/user-roles.enum';
+import { IsString, IsEmail, IsOptional } from 'class-validator';
+export class UpdateUserDto {
+  @IsOptional()
+  @IsString({
+    message: 'Informe um nome de usuário válido',
+  })
+  name: string;
+
+  @IsOptional()
+  @IsEmail(
+    {},
+    {
+      message: 'Informe um endereço de email válido',
+    },
+  )
+  email: string;
+
+  @IsOptional()
+  role: UserRole;
+
+  @IsOptional()
+  status: boolean;
+}
+```
+
+* No `users.service.ts`_,_ vamos adicionar o método que irá alterar os dados do usuário:
+
+```
+async updateUser(updateUserDto: UpdateUserDto, id: string): Promise<User> {
+    const user = await this.findUserById(id);
+    const { name, email, role, status } = updateUserDto;
+    user.name = name ? name : user.name;
+    user.email = email ? email : user.email;
+    user.role = role ? role : user.role;
+    user.status = status === undefined ? user.status : status;
+    try {
+      await user.save();
+      return user;
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Erro ao salvar os dados no banco de dados',
+      );
+    }
+  }
+```
+
+* Criar o endpoint no controller:
+
+```
+ @Patch(':id')
+  async updateUser(
+    @Body(ValidationPipe) updateUserDto: UpdateUserDto,
+    @GetUser() user: User,
+    @Param('id') id: string,
+  ) {
+    if (user.role != UserRole.ADMIN && user.id.toString() != id) {
+      throw new ForbiddenException(
+        'Você não tem autorização para acessar esse recurso',
+      );
+    } else {
+      return this.usersService.updateUser(updateUserDto, id);
+    }
+  }
+```
+
+#### Alguns detalhes para se observar:
+
+Reparem que, além de utilizarmos um novo verbo HTTP (PATCH), combinado com o uso do decorator `@Body` com o decorator `@Param`. Também fazendo uso do decorator `@GetUser`.
+
+Também realizar uma pequena validação de permissão, já que além de um usuário administrador poder alterar dados dos outros usuários, também precisamos dar a permissão para que um usuário possa alterar seus próprios dados.
+
+![Criando outro usuário](<.gitbook/assets/image (5).png>)
+
+![Atualizando o usuário criado](<.gitbook/assets/image (6).png>)
+
+## Deletar Usuário <a href="#ffab" id="ffab"></a>
+
+Endpoint irá deletar um usuário com o ID informado na URL.&#x20;
+
+* Criar o método no `users.service.ts`:
+
+```
+async deleteUser(userId: string) {
+    const result = await this.userRepository.delete({ id: userId });
+    if (result.affected === 0) {
+      throw new NotFoundException(
+        'Não foi encontrado um usuário com o ID informado',
+      );
+    }
+  }
+```
+
+* Adicionar o endpoint no `users.controller.ts`:
+
+```
+@Delete(':id')
+  @Role(UserRole.ADMIN)
+  async deleteUser(@Param('id') id: string) {
+    await this.usersService.deleteUser(id);
+    return {
+      message: 'Usuário removido com sucesso',
+    };
+  }
+```
+
+![Excluindo um usuário](<.gitbook/assets/image (11).png>)
+
+## Buscar usuários com um filtro <a href="#0909" id="0909"></a>
+
+Endpoint que trará a funcionalidade do nosso client de buscar vários usuários que atendam a critérios especificados. Para isso, criar um DTO para representar os possíveis filtros da nossa aplicação.
+
+Antes de tudo, vamos criar uma pasta **shared** dentro de **src** e dentro de **shared** criar uma outra pasta chamada **dto.** Dentro dela  criar um arquivo `base-query-parameters.dto.ts:`
+
+```
+export abstract class BaseQueryParametersDto {
+  sort: string;
+  page: number;
+  limit: number;
+}
+```
+
+
+
+Nesse arquivo declaramos uma classe abstrata com alguns parâmetros que serão comuns a todas requisições de busca com filtros:
+
+* **sort**: Reponsável por passar a string representando um objeto javascript com informações a respeito de como os dados devem ser ordenados ao serem buscados no banco de dados. Como estamos passando esse parâmetro como um Query Parameter na URL, é interessante o client utilizar o **JSON.stringify()** para converter o objeto em string. Por exemplo:
+
+```
+// exemplo de um objeto com as informações de ordenação
+const sort = {
+  name: "ASC",
+  email: "DESC"
+}
+
+const sortString = JSON.stringify(sort)
+// sortString => "{\"name\":\"ASC\",\"email\":\"DESC\"}"
+```
+
+* **page**: Para dar suporte à paginação, informa qual a página dos resultados está sendo consultada pelo client (será utilizada para definirmos quantos dados devemos pular ao consultar o banco de dados)
+* **limit**: Quantidade de dados a serem retornados por página
+
+Com isso agora pode-se criar o arquivo `find-users-query.dto.ts`, dentro de **users/dto**:
+
+```
+import { BaseQueryParametersDto } from "src/shared/dto/base-query-parameters.dto";
+
+export class FindUsersQueryDto extends BaseQueryParametersDto {
+  name: string;
+  email: string;
+  status: boolean;
+  role: string;
+}
+```
+
+Como nosso método de buscar usuários pode ficar bem extenso, vamos escrevê-lo dentro do nosso Repository ao invés de dentro do Service:
+
+```
+ async findUsers(
+    queryDto: FindUsersQueryDto,
+  ): Promise<{ users: User[]; total: number }> {
+    queryDto.status = queryDto.status === undefined ? true : queryDto.status;
+    queryDto.page = queryDto.page < 1 ? 1 : queryDto.page;
+    queryDto.limit = queryDto.limit > 100 ? 100 : queryDto.limit;
+
+    const { email, name, status, role } = queryDto;
+    const query = this.createQueryBuilder('user');
+    query.where('user.status = :status', { status });
+
+    if (email) {
+      query.andWhere('user.email ILIKE :email', { email: `%${email}%` });
+    }
+
+    if (name) {
+      query.andWhere('user.name ILIKE :name', { name: `%${name}%` });
+    }
+
+    if (role) {
+      query.andWhere('user.role = :role', { role });
+    }
+    query.skip((queryDto.page - 1) * queryDto.limit);
+    query.take(+queryDto.limit);
+    query.orderBy(queryDto.sort ? JSON.parse(queryDto.sort) : undefined);
+    query.select(['user.name', 'user.email', 'user.role', 'user.status']);
+
+    const [users, total] = await query.getManyAndCount();
+
+    return { users, total };
+  }
+```
+
+#### Alguns detalhes importantes do método _findUsers:_
+
+* Nas primeiras linhas do método executamos algumas validações de parâmetros para garantir um bom funcionamento do código.
+* Quando executamos a função `createQueryBuilder` passamos como argumento a string **‘user’**. Essa string será o alias utilizado durante a montagem da **query**.
+* Após chamarmos `query.where()` __ pela primeira vez nós passamos a chamar o método `query.andWhere()`_._ Fazendo isso pois se chamarmos o método `query.where()` __ novamente ele irá substituir toda nossa query ao invés de adicionar uma nova condição.
+* Para executarmos a query nós chamamos o método `query.getManyAndCount()`_._ Esse método nos retorna dois valores: o primeiro são os usuários encontrados, o segundo o total de dados que satisfazem as condições especificadas, ignorando a paginação. Isso é muito útil para que nosso client possa exibir os dados utilizando a paginação do servidor.
+
+Agora podemos chamar essa função do nosso `users.service.ts`_:_
+
+```
+async findUsers(
+    queryDto: FindUsersQueryDto,
+  ): Promise<{ users: User[]; total: number }> {
+    const users = await this.userRepository.findUsers(queryDto);
+    return users;
+  }
+
+```
+
+Por fim, adicionar o endpoint ao nosso controller:
+
+```
+ @Get()
+  @Role(UserRole.ADMIN)
+  async findUsers(@Query() query: FindUsersQueryDto) {
+    const found = await this.usersService.findUsers(query);
+    return {
+      found,
+      message: 'Usuários encontrados',
+    };
+  }
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
