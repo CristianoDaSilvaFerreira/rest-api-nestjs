@@ -1374,13 +1374,172 @@ Por fim, adicionar o endpoint ao nosso controller:
   }
 ```
 
+## Logs <a href="#1ec8" id="1ec8"></a>
 
+Logs são uma parte essencial de qualquer aplicação. É através deles que conseguimos manter um registro de tudo o que acontece no nosso servidor e conseguimos nos resguardar contra possíveis imprevistos.
 
+### Winston <a href="#ad21" id="ad21"></a>
 
+Para gerar um log de uso na API iremos utilizar o [Winston](https://github.com/winstonjs/winston).
 
+Winston é uma biblioteca de logs universal, com suporte a diferentes meios de saída, como saída em console ou saída em arquivo. No caso, utilizaremos principalmente o recurso de saída em arquivo.
 
+[Aqui](https://github.com/winstonjs/winston/blob/master/docs/transports.md#winston-core) é possível encontrar uma lista das saídas suportadas pelo Winston (repare que a saída é referenciada como “_transports_”). Um transporte nada mais é do que um meio onde os logs podem ser armazenados. Um logger pode possuir vários transportes distintos, e às vezes até transportes repetidos, mas com configurações diferentes (ex.: manter um arquivo de logs de erro e um arquivo de logs geral, ambos utilizaram o transporte de arquivos, porém com configurações diferentes).
 
+Existem transportes que permitem gravar logs em bancos de dados (MongoDB, Postgres, SQLite), transporte para enviar logs via email (pode ser útil para notificar quando ocorre um erro crítico na aplicação), dentre vários outros. Vale a pena conferir as possibilidades!
 
+### NestJS + Winston <a href="#4aa9" id="4aa9"></a>
+
+Adicionar logs à  API construída com NestJS. Para isso, precisamos  primeiros instalar dois novos pacotes:
+
+```
+npm i --save winston nest-winston
+```
+
+O pacote [nest-winston](https://github.com/gremo/nest-winston) nada mais é do que o Winston encapsulado em um módulo do NestJS e precisa do pacote winston para funcionar, por motivos óbvios.
+
+#### Um problema:&#x20;
+
+Seria interessante adicionar logs a todos os endpoints da API. Entretanto, não parece uma saída interessante adicionar cada log individualmente, a cada endpoint nos nossos controllers.
+
+Poderia criar uma **middleware** para resolver esse problema. E realmente um middleware global funcionaria em diversos cenários,  e o [NestJS aceita a criação de middleware](https://docs.nestjs.com/middleware)o [NestJS](https://docs.nestjs.com/middleware).
+
+Entretanto, ao consultar a documentação do NestJS podemos encontrar uma descrição do [ciclo de vida de uma requisição dentro do NestJS](https://docs.nestjs.com/faq/request-lifecycle). Em resumo, uma requisição passa pelas seguintes etapas:
+
+![Ciclo de vida de um requisição dentro do NestJs](<.gitbook/assets/image (15).png>)
+
+Podemos perceber que uma middleware global seria executada assim que a requisição é recebida. Nesse caso, seria interessante se identificássemos o usuário que está realizando a requisição, no caso de endpoints que exigem autenticação. Isso não seria possível pois as **guards** só são executadas após as **middlewares**, então o usuário só poderia ser identificado após a execução das guards.
+
+### Interceptors <a href="#1529" id="1529"></a>
+
+Interceptors são classes injetáveis que contêm um método **transform** que recebe como argumentos o contexto de execução da aplicação e um segundo argumento do tipo **CallHandler** que contém uma função a ser executada para dar seguimento ao ciclo de vida da requisição após a execução do interceptor. Pode ler a documentação completa de interceptors [aqui](https://docs.nestjs.com/interceptors).
+
+* Primeiro, criar um arquivo com as configurações desejadas do **logger**, dentro da pasta **configs**, criar um arquivo `winston.config.ts`:
+
+```
+import {
+  utilities as nestWinstonModuleUtilities,
+  WinstonModuleOptions,
+} from 'nest-winston';
+import * as winston from 'winston';
+
+export const winstonConfig: WinstonModuleOptions = {
+  levels: winston.config.npm.levels,
+  level: 'verbose',
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.timestamp(),
+        nestWinstonModuleUtilities.format.nestLike(),
+      ),
+    }),
+    new winston.transports.File({
+      level: 'verbose',
+      filename: 'application.log',
+      dirname: 'logs',
+    }),
+  ],
+};
+```
+
+* Incluir o logger na nossa aplicação. Para que ele se torne o logger padrão da aplicação podemos adicioná-lo aos parâmetros de inicialização do NestJS, em `main.ts`:
+
+```
+import { NestFactory } from '@nestjs/core';
+import { WinstonModule } from 'nest-winston';
+import { AppModule } from './app.module';
+import { winstonConfig } from './configs/winstonConfig';
+
+async function bootstrap() {
+  const logger = WinstonModule.createLogger(winstonConfig);
+  const app = await NestFactory.create(AppModule, { logger });
+  await app.listen(3000);
+}
+bootstrap();
+```
+
+* Criar uma pasta dentro de **src** chamada **interceptors** e dentro dela vamos criar o `logger.interceptor.ts`_._
+
+```
+import {
+  Injectable,
+  Inject,
+  NestInterceptor,
+  CallHandler,
+  ExecutionContext,
+} from '@nestjs/common';
+import { Logger } from 'winston';
+import { Observable } from 'rxjs';
+
+@Injectable()
+export class LoggerInterceptor implements NestInterceptor {
+  constructor(@Inject('winston') private logger: Logger) {}
+  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    this.log(context.switchToHttp().getRequest());
+    return next.handle();
+  }
+
+  private log(req) {
+    const body = { ...req.body };
+    delete body.password;
+    delete body.passwordConfirmation;
+    const user = (req as any).user;
+    const userEmail = user ? user.email : null;
+    this.logger.info({
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      route: req.route.path,
+      data: {
+        body: body,
+        query: req.query,
+        params: req.params,
+      },
+      from: req.ip,
+      madeBy: userEmail,
+    });
+  }
+}
+```
+
+#### Detalhes desse logger:
+
+* **Armazenamos 6 coisas da requisição**:&#x20;
+
+1. A data e hora que ela foi realizada,&#x20;
+2. o método ou verbo HTTP utilizado,&#x20;
+3. o endpoint que foi acessado,&#x20;
+4. o conteúdo da requisição,&#x20;
+5. o endereço de IP de origem da requisição,
+6. o email do usuário que realizou a requisição;
+
+* **Eliminando do corpo da requisição:** os parâmetros com nome **password** e **passwordConfirmation** que são os parâmetros com as senhas do usuário. Isso garante que nós não salvamos nos nossos logs informações tão sensíveis.&#x20;
+* **Criar-se uma cópia do corpo da requisição:** antes de remover esses dados, pois se fossem removidos direto do corpo da requisição os mesmos não seriam acessíveis posteriormente quando estivéssemos tratando nossa requisição.
+* Adicionar o interceptor de forma global à da aplicação. Para isso, alterar nosso `app.module.ts`_:_
+
+```
+import { LoggerInterceptor } from './interceptors/logger.interceptor';
+import { APP_INTERCEPTOR } from '@nestjs/core';
+import { WinstonModule } from 'nest-winston';
+import { winstonConfig } from './configs/winstonConfig';
+
+@Module({
+  imports: [
+    TypeOrmModule.forRoot(typeOrmConfig),
+    WinstonModule.forRoot(winstonConfig),
+    UsersModule,
+    AuthModule,
+  ],
+  controllers: [],
+  providers: [
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: LoggerInterceptor,
+    },
+  ],
+})
+```
+
+![](<.gitbook/assets/image (14).png>)
 
 
 
