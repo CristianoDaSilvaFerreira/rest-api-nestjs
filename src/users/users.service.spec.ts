@@ -1,19 +1,20 @@
-import {
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { CreateUserDto } from './dtos/create-user.dto';
-import { FindUsersQueryDto } from './dtos/find-users-query.dto';
-import { UserRole } from './Enum/user-roles.enum';
-import { UserRepository } from './repository/users.repository';
 import { UsersService } from './users.service';
+import {
+  UnprocessableEntityException,
+  NotFoundException,
+} from '@nestjs/common';
+import { UserRepository } from './repository/users.repository';
+import { CreateUserDto } from './dtos/create-user.dto';
+import { UserRole } from './Enum/user-roles.enum';
+import { FindUsersQueryDto } from './dtos/find-users-query.dto';
 
 const mockUserRepository = () => ({
   createUser: jest.fn(),
   findOne: jest.fn(),
   delete: jest.fn(),
   findUsers: jest.fn(),
+  update: jest.fn(),
 });
 
 describe('UsersService', () => {
@@ -40,7 +41,7 @@ describe('UsersService', () => {
     expect(userRepository).toBeDefined();
   });
 
-  //   Teste createUser
+  // Teste createUser
   describe('createUser', () => {
     let mockCreateUserDto: CreateUserDto;
 
@@ -72,7 +73,7 @@ describe('UsersService', () => {
     });
   });
 
-  //   Teste findUserById
+  // Teste findUserById
   describe('findUserById', () => {
     it('should return the found user', async () => {
       userRepository.findOne.mockResolvedValue('mockUser');
@@ -124,6 +125,29 @@ describe('UsersService', () => {
         mockFindUsersQueryDto,
       );
       expect(result).toEqual('resultOfsearch');
+    });
+  });
+
+  //   Teste updateUser
+  describe('updateUser', () => {
+    it('should return affected > 0 if user data is updated and return the new user', async () => {
+      userRepository.update.mockResolvedValue({ affected: 1 });
+      userRepository.findOne.mockResolvedValue('mockUser');
+
+      const result = await service.updateUser('mockUpdateUserDto', 'mockId');
+      expect(userRepository.update).toHaveBeenCalledWith(
+        { id: 'mockId' },
+        'mockUpdateUserDto',
+      );
+      expect(result).toEqual('mockUser');
+    });
+
+    it('should throw an error if no row is affected in the DB', async () => {
+      userRepository.update.mockResolvedValue({ affected: 0 });
+
+      expect(service.updateUser('mockUpdateUserDto', 'mockId')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

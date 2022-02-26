@@ -13,7 +13,6 @@ import { CredentialsDto } from '../dtos/credentials.dto';
 
 @EntityRepository(User)
 export class UserRepository extends Repository<User> {
-
   // Método de filtrar usuários
   async findUsers(
     queryDto: FindUsersQueryDto,
@@ -46,7 +45,7 @@ export class UserRepository extends Repository<User> {
 
     return { users, total };
   }
-  
+
   // Método de criação de usuários
   async createUser(
     createUserDto: CreateUserDto,
