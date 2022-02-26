@@ -4,6 +4,7 @@ import {
 } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { CreateUserDto } from './dtos/create-user.dto';
+import { FindUsersQueryDto } from './dtos/find-users-query.dto';
 import { UserRole } from './Enum/user-roles.enum';
 import { UserRepository } from './repository/users.repository';
 import { UsersService } from './users.service';
@@ -89,7 +90,7 @@ describe('UsersService', () => {
     });
   });
 
-  //   Teste deleteUser()
+  //   Teste deleteUser
   describe('deleteUser', () => {
     it('should return affected > 0 if user is deleted', async () => {
       userRepository.delete.mockResolvedValue({ affected: 1 });
@@ -102,6 +103,27 @@ describe('UsersService', () => {
       userRepository.delete.mockResolvedValue({ affected: 0 });
 
       expect(service.deleteUser('mockId')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  //   Teste findUsers
+  describe('findUsers', () => {
+    it('should call the findUsers method of the userRepository', async () => {
+      userRepository.findUsers.mockResolvedValue('resultOfsearch');
+      const mockFindUsersQueryDto: FindUsersQueryDto = {
+        name: '',
+        email: '',
+        limit: 1,
+        page: 1,
+        role: '',
+        sort: '',
+        status: true,
+      };
+      const result = await service.findUsers(mockFindUsersQueryDto);
+      expect(userRepository.findUsers).toHaveBeenCalledWith(
+        mockFindUsersQueryDto,
+      );
+      expect(result).toEqual('resultOfsearch');
     });
   });
 });
