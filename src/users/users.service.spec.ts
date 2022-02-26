@@ -70,4 +70,38 @@ describe('UsersService', () => {
       );
     });
   });
+
+  //   Teste findUserById
+  describe('findUserById', () => {
+    it('should return the found user', async () => {
+      userRepository.findOne.mockResolvedValue('mockUser');
+      expect(userRepository.findOne).not.toHaveBeenCalled();
+
+      const result = await service.findUserById('mockId');
+      const select = ['email', 'name', 'role', 'id'];
+      expect(userRepository.findOne).toHaveBeenCalledWith('mockId', { select });
+      expect(result).toEqual('mockUser');
+    });
+
+    it('should throw an error as user is not found', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      expect(service.findUserById('mockId')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  //   Teste deleteUser
+  describe('deleteUser', () => {
+    it('should return affected > 0 if user is deleted', async () => {
+      userRepository.delete.mockResolvedValue({ affected: 1 });
+
+      await service.deleteUser('mockId');
+      expect(userRepository.delete).toHaveBeenCalledWith({ id: 'mockId' });
+    });
+
+    it('should throw an error if no user is deleted', async () => {
+      userRepository.delete.mockResolvedValue({ affected: 0 });
+
+      expect(service.deleteUser('mockId')).rejects.toThrow(NotFoundException);
+    });
+  });
 });
