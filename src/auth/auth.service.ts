@@ -3,10 +3,10 @@ import { UserRole } from '../users/Enum/user-roles.enum';
 import { User } from './../users/entities/user.entity';
 import { CreateUserDto } from './../users/dtos/create-user.dto';
 import { UserRepository } from './../users/repository/users.repository';
-import { 
-    Injectable, 
-    UnauthorizedException, 
-    UnprocessableEntityException 
+import {
+  Injectable,
+  UnauthorizedException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { JwtService } from '@nestjs/jwt';
@@ -37,10 +37,10 @@ export class AuthService {
     }
 
     const jwtPayload = {
-        id: user.id,
-      };
-      const token = await this.jwtService.sign(jwtPayload);
-  
-      return { token };
+      id: user.id,
+    };
+    const token = await this.jwtService.sign(jwtPayload);
+
+    return { token };
   }
 }

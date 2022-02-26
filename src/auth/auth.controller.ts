@@ -3,7 +3,14 @@ import { User } from './../users/entities/user.entity';
 import { CredentialsDto } from './../users/dtos/credentials.dto';
 import { CreateUserDto } from './../users/dtos/create-user.dto';
 import { AuthService } from './auth.service';
-import { Body, Controller, Get, Post, Req, UseGuards, ValidationPipe } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  UseGuards,
+  ValidationPipe,
+} from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 
 @Controller('auth')
