@@ -89,7 +89,7 @@ describe('UsersService', () => {
     });
   });
 
-  //   Teste deleteUser
+  //   Teste deleteUser()
   describe('deleteUser', () => {
     it('should return affected > 0 if user is deleted', async () => {
       userRepository.delete.mockResolvedValue({ affected: 1 });
