@@ -990,7 +990,7 @@ Primeiro foi adicionado o módulo do `Passport` ao nosso módulo **users** adici
 
 Feito isso adicionar o decorator `@UseGuards()` __ no endpoint de criação de usuários administradores, passando o guard `AuthGuard()` como parâmetro. Vamos agora tentar criar um administrador sem estarmos autenticados:
 
-![](<.gitbook/assets/image (10).png>)
+![](<.gitbook/assets/image (10) (1).png>)
 
 #### 401 Unauthorized
 
@@ -1256,7 +1256,7 @@ async deleteUser(userId: string) {
   }
 ```
 
-![Excluindo um usuário](<.gitbook/assets/image (11).png>)
+![Excluindo um usuário](<.gitbook/assets/image (11) (1).png>)
 
 ## Buscar usuários com um filtro <a href="#0909" id="0909"></a>
 
@@ -1541,7 +1541,258 @@ import { winstonConfig } from './configs/winstonConfig';
 
 ![](<.gitbook/assets/image (14).png>)
 
+## Testes em JavaScript <a href="#1ec8" id="1ec8"></a>
 
+Escrever testes para sua aplicação é, além de boa prática, uma forma de garantir entregas com mais qualidade.
+
+Quando se trata de **JavaScript** em geral a biblioteca mais utilizada para testes é o [jest](https://jestjs.io). Ele é um framework de testes feito para funcionar seja com **Node**, **TypeScript**, ou até mesmo com frameworks front-end como Angular, **Vue** ou **React**. Quando se cria um projeto **NestJS** o jest já vem instalado automaticamente, então podemos começar sem mais demoras.
+
+Testes para `UsersService`. Para isso, dentro da pasta **users** vamos criar o arquivo `users.service.spec.ts`.
+
+```
+import { Test, TestingModule } from '@nestjs/testing';
+import { UserRepository } from './repository/users.repository';
+import { UsersService } from './users.service';
+
+const mockUserRepository = () => ({
+  createUser: jest.fn(),
+  findOne: jest.fn(),
+  delete: jest.fn(),
+  findUsers: jest.fn(),
+});
+
+describe('UsersService', () => {
+  let userRepository;
+  let service;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        UsersService,
+        {
+          provide: UserRepository,
+          useFactory: mockUserRepository,
+        },
+      ],
+    }).compile();
+
+    userRepository = await module.get<UserRepository>(UserRepository);
+    service = await module.get<UsersService>(UsersService);
+  });
+
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+    expect(userRepository).toBeDefined();
+  });
+});
+```
+
+
+
+#### Explicar o que está acontecendo aqui:
+
+1. **mockUserRepository:** Ele será responsável por simular todas as chamadas ao `userRepository` dentro do `users.service.ts`_._ Todos os métodos que teremos que emular dentro de nosso arquivo de testes foram especificados com o valor **jest.fn().** Essa **** funcionalidade do jest permite emular o funcionamento de métodos externos à classe que estamos testando. Isso é importante para podermos separar os escopos dos nossos testes.
+2. **describe:** Utilizamos o describe para separar as partes de nosso teste, sendo que podemos iniciar um describe dentro de outro de forma aninhada. No caso criaremos um describe para cada método do nosso `UsersService`.
+3. **beforeEach:** é uma função que será executada antes de cada teste a ser realizado. No caso utilizamos ela para inicializar nosso módulo e suas dependências que serão utilizadas durante os testes.
+4. **TestingModule, Test.createTestingModule:** Esses recursos são naturais do próprio **NestJS** para serem utilizados em conjunto com o jest. Eles simulam a inicialização de um módulo e suas dependências. É importante aproveitarmos essa parte para inicializarmos o `UserRepository` que o `UsersService` precisa para funcionar com nosso `mockUserRepository` que irá simular as funcionalidades do `UserRepository` normal.
+5. **it:** O it é utilizado para descrevermos cada teste que será realizado. No caso o primeiro teste que realizamos é se o `UsersService` e o `UserRepository` foram inicializados com sucesso.
+6. **expect:** é através do expect que verificamos se as coisas aconteceram como esperado. Nesse primeiro teste nós esperávamos que o service e o `userRepository` fossem inicializados com sucesso durante a criação do módulo de teste, por isso esperávamos que seus valores fossem definidos, ou seja, diferentes de _**undefined**._
+
+Basicamente serão essas funcionalidades que utilizarei no decorrer dos testes para verificar se nosso código funciona como esperado. Vamos começar testando nosso método **createUser:**
+
+```
+describe('createUser', () => {
+    let mockCreateUserDto: CreateUserDto;
+
+    beforeEach(() => {
+      mockCreateUserDto = {
+        email: 'mock@email.com',
+        name: 'Mock User',
+        password: 'mockPassword',
+        passwordConfirmation: 'mockPassword',
+      };
+    });
+
+    it('should create an user if passwords match', async () => {
+      userRepository.createUser.mockResolvedValue('mockUser');
+      const result = await service.createAdminUser(mockCreateUserDto);
+
+      expect(userRepository.createUser).toHaveBeenCalledWith(
+        mockCreateUserDto,
+        UserRole.ADMIN,
+      );
+      expect(result).toEqual('mockUser');
+    });
+
+    it('should throw an error if passwords doesnt match', async () => {
+      mockCreateUserDto.passwordConfirmation = 'wrongPassword';
+      expect(service.createAdminUser(mockCreateUserDto)).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+  });
+```
+
+#### Analisar o que está acontecendo:
+
+1. Utilizando o **beforeEach** para inicializar o valor do **mockCreateUserDto**, uma vez que esse é o argumento esperado pelo método **createAdminUser** e dentro dos testes queremos ter controle sobre a entrada do método.
+2. O primeiro caso de testes que analisaremos será se o usuário será criado caso não tenha nenhum problema. O **jest.fn()** nos dá acesso ao método **mockResolvedValue** que simula uma execução bem sucedida de uma função assíncrona (no `userRepository` a função **createUser** é assíncrona). Vamos simular que, caso a execução seja bem sucedida, o método irá nos retornar simplesmente a string **‘mockUser’**.
+3. Realizando a chamada ao método que queremos testar com o valor de testes **mockCreateUserDto.**
+4. Após a execução do método **createAdminUser** esperamos que algumas coisas tenham acontecido. A primeira é que o método **createUser do UserRepository** tenha sido chamado especificamente com os argumentos **mockCreateUserDto e UserRole.ADMIN**. Após isso esperamos que o método tenha sido executado com sucesso e que tenha nos retornado a string **‘mockUser’** conforme especificamos no início do teste que uma execução bem sucedida do **createUser** irá retornar esse valor. Lembrando que isso só é possível pois inicializamos esse método com o valor **jest.fn()** na criação do **mockUserRepository.**
+
+Segundo caso de testes: O método **createAdminUser** deve retornar um erro caso as senhas sejam diferentes:
+
+1. Primeiro atribuímos um valor ao campo **passwordConfirmation** que seja diferente do valor do campo **password.**
+2. Em seguida nós simulamos a execução do método **createAdminUser** com um **mockCreateUserDto** onde as senhas não coincidem. O resultado aguardado é que a Promise seja rejeitada com o erro **UnprocessableEntityException.**
+
+Podemos executar nossos testes com o comando:\
+
+
+```
+$ npm run test:watch
+```
+
+![Resultado dos testes](<.gitbook/assets/image (10).png>)
+
+Se tudo ocorreu bem esse será o resultado dos testes. Agora podemos testar o método **findUserById**:
+
+```
+describe('findUserById', () => {
+    it('should return the found user', async () => {
+      userRepository.findOne.mockResolvedValue('mockUser');
+      expect(userRepository.findOne).not.toHaveBeenCalled();
+
+      const result = await service.findUserById('mockId');
+      const select = ['email', 'name', 'role', 'id'];
+      expect(userRepository.findOne).toHaveBeenCalledWith('mockId', { select });
+      expect(result).toEqual('mockUser');
+    });
+
+    it('should throw an error as user is not found', async () => {
+      userRepository.findOne.mockResolvedValue(null);
+      expect(service.findUserById('mockId')).rejects.toThrow(NotFoundException);
+    });
+  });
+```
+
+analisar o que está acontecendo:
+
+1. Criamos um novo **describe** para os testes do **findUserById.**
+2. O primeiro teste realizado é caso um ID válido seja passado ao método.
+3. Especificamos a string **‘mockUser’** como o valor de retorno do método **findOne** do **UserRepository** caso o método seja executado com sucesso.
+4. Nós esperamos que, até esse momento, o método **findOne** ainda não tenha sido executado nenhuma vez.
+5. Simulamos a execução do método **findUserById** com um ID qualquer.
+6. Especificamos os campos que serão passados como parâmetro para o select do método **findOne** do **UserRepository.**
+7. Após a execução do método **findUserById** do nosso **UsersService** nós esperamos que o método **findOne** do **UserRepository** tenha sido executado com os argumentos **‘mockId’** e **{ select }** sendo **select** o valor que definimos anteriormente.
+8. Nós também esperamos que o valor retornado após a execução bem sucedida de **findOnde** seja a string **‘mockUser’.**
+
+Vamos analisar agora o segundo teste que realizamos, que é o caso do método **findOne** do **UserRepository** não ter encontrado um usuário a partir do ID informado:
+
+1. Primeiro especificamos que o método **findOne** do **UserRepository** será executado com sucesso e retornará **null.**
+2. Depois simulamos a execução do método **findUserById,** onde esperamos que a função retorne o erro **NotFoundException**.
+
+O próximo método da lista é o **deleteUser:**
+
+```
+describe('deleteUser', () => {
+    it('should return affected > 0 if user is deleted', async () => {
+      userRepository.delete.mockResolvedValue({ affected: 1 });
+
+      await service.deleteUser('mockId');
+      expect(userRepository.delete).toHaveBeenCalledWith({ id: 'mockId' });
+    });
+
+    it('should throw an error if no user is deleted', async () => {
+      userRepository.delete.mockResolvedValue({ affected: 0 });
+
+      expect(service.deleteUser('mockId')).rejects.toThrow(NotFoundException);
+    });
+  });
+```
+
+#### Analisando os testes:
+
+1. Criamos um **describe** para os testes do método **deleteUser.**
+2. Testamos uma execução bem sucedida do método, onde o método **delete** do **UserRepository** nos retorna **affected > 0.**
+3. Testamos uma execução falha do método, onde o método **delete** do **UserRepository** nos retorna **affected = 0** e então o método **deleteUser** retorna um erro do tipo **NotFoundException** indicando que não foi encontrado um usuário com o ID informado para ser deletado.
+
+O próximo teste será para o método **findUsers**, que será o teste mais simples de todos:
+
+```
+describe('findUsers', () => {
+    it('should call the findUsers method of the userRepository', async () => {
+      userRepository.findUsers.mockResolvedValue('resultOfsearch');
+      const mockFindUsersQueryDto: FindUsersQueryDto = {
+        name: '',
+        email: '',
+        limit: 1,
+        page: 1,
+        role: '',
+        sort: '',
+        status: true,
+      };
+      const result = await service.findUsers(mockFindUsersQueryDto);
+      expect(userRepository.findUsers).toHaveBeenCalledWith(
+        mockFindUsersQueryDto,
+      );
+      expect(result).toEqual('resultOfsearch');
+    });
+  });
+```
+
+Último vamos aos testes do **updateUser.** Para que o método se torne testável, temos reescrever ele da seguinte forma no `users.service.ts`:
+
+```
+async updateUser(updateUserDto: UpdateUserDto, id: string) {
+    const result = await this.userRepository.update({ id }, updateUserDto);
+    if (result.affected > 0) {
+      const user = await this.findUserById(id);
+      return user;
+    } else {
+      throw new NotFoundException('Usuário não encontrado');
+    }
+  }
+```
+
+#### Observe que:
+
+1. Antes buscávamos o usuário no banco de dados com o ID informado verificando sua existência, verificávamos os campos informados no `updateUserDto` para atualizar os respectivos campos no usuário encontrado e fazia uma segunda chamada ao banco de dados para atualizar os dados.
+2. Agora  realizar-se uma chamada ao banco de dados para atualizar os dados, delegando a lógica para o método **update()** já **** padrão de um repositório **TypeORM** e verificar se houve algum registro afetado no banco de dados. Se não houve um registro afetado  retornar um erro de que o ID é inválido. Se houve algum registro afetado significa que o ID é válido e os dados foram alterados com sucesso. Em seguida realizar uma segunda chamada ao banco de dados para encontrar o usuário alterado, com os dados já atualizados, para poder retornar o mesmo para o front-end, da mesma forma que fazia anteriormente.
+
+Agora escrever os testes para esse método:
+
+```
+describe('updateUser', () => {
+    it('should return affected > 0 if user data is updated and return the new user', async () => {
+      userRepository.update.mockResolvedValue({ affected: 1 });
+      userRepository.findOne.mockResolvedValue('mockUser');
+
+      const result = await service.updateUser('mockUpdateUserDto', 'mockId');
+      expect(userRepository.update).toHaveBeenCalledWith(
+        { id: 'mockId' },
+        'mockUpdateUserDto',
+      );
+      expect(result).toEqual('mockUser');
+    });
+
+    it('should throw an error if no row is affected in the DB', async () => {
+      userRepository.update.mockResolvedValue({ affected: 0 });
+
+      expect(service.updateUser('mockUpdateUserDto', 'mockId')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+```
+
+Os testes para o método **updateUser** ficaram semelhantes aos do método **deleteUser,** com algumas pequenas exceções:
+
+1. Dentro de **updateUser**, caso algum dado no banco tenha sido afetado **(affected > 0),** realizar uma chamada à função **findUserById**, então é necessário especificar um valor de retorno para a função **findOne** do **UserRepository,** uma vez que a mesma é chamada dentro de **findUserById.** Então verificamos se **userRepository.update** foi chamada com os argumentos corretos e posteriormente se o método **updateUser** do **USersService** retornou o usuário corretamente.
+2. O segundo teste, caso não tenha sido encontrado um usuário com o ID especificado, é semelhante ao do **deleteUser,** onde o método retorna um erro do tipo **NotFoundException** caso **affected = 0.**
+
+Executando todos os testes escritos aqui:
+
+![](<.gitbook/assets/image (11).png>)
 
 
 
