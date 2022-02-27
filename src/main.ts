@@ -6,7 +6,6 @@ import { winstonConfig } from './configs/winstonConfig';
 async function bootstrap() {
   const logger = WinstonModule.createLogger(winstonConfig);
   const app = await NestFactory.create(AppModule, { logger });
-  await app.listen(3000);
+  await app.listen(process.env.PORT || 3000);
 }
 bootstrap();
-
