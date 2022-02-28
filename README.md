@@ -579,7 +579,7 @@ export class UsersController {
 }
 ```
 
-![](<.gitbook/assets/image (3) (1) (1).png>)
+![](<.gitbook/assets/image (3) (1) (1) (1).png>)
 
 #### 400 Bad Request
 
@@ -1073,11 +1073,11 @@ E com isso o sistema de autorização por perfil já está pronto.
   }
 ```
 
-![](<.gitbook/assets/image (12).png>)
+![](<.gitbook/assets/image (12) (1).png>)
 
 * Agora fazendo login com um usuário administrador:
 
-![](<.gitbook/assets/image (3).png>)
+![](<.gitbook/assets/image (3) (1).png>)
 
 Como foi criado um módulo **auth** para tratar da criação de conta de usuários comuns e login todas as outras operações referentes a usuários no módulo **users** vão ser protegidas por autenticação e também por autorização. Para isso, ao invés de protegermos endpoint por endpoint da aplicação, pode-se colocar o decorator `@UseGuards` __ junto ao nosso decorator __ `@Controller(‘users’)` __ ficando da seguinte forma:
 
@@ -1794,11 +1794,41 @@ Executando todos os testes escritos aqui:
 
 ![](<.gitbook/assets/image (11).png>)
 
+## Documentando com Swagger
 
+A documentação é uma parte fundamental do sistema, pois acessando o endereço definido poderá ter uma noção dos endpoints criado na aplicação facilitando assim a utilização da API. Para isso será necessário a instalação de duas bibliotecas do NestJS, o **Swagger** e o **Express:**
 
+```
+$ npm install --save @nestjs/swagger swagger-ui-express
+```
 
+Configurando o arquivo `main.ts` para comunicar-se com a documentação do **Swagger**
 
+```
+const config = new DocumentBuilder()
+    .setTitle('REST API NestJs')
+    .setDescription('API de cadastro de usuários usando NestJs e PostgreSQL')
+    .setVersion('1.0.1')
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+```
 
+![](<.gitbook/assets/image (3).png>)
+
+Adicionar o decorate  `@ApiTags('REST API NestJs')` no `users.controller.ts`
+
+```
+@Controller('users')
+@ApiTags('REST API NestJs')
+@UseGuards(AuthGuard(), RolesGuard)
+export class UsersController {
+  constructor(private usersService: UsersService) {}
+```
+
+Para que cada endpoint indique a chamada da função, adicionar em cada DTO o decorate `@ApiProperty()`
+
+![](<.gitbook/assets/image (12).png>)
 
 #### License
 
