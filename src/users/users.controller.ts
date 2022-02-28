@@ -22,14 +22,17 @@ import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../auth/roles.guard';
 import { Role } from '../auth/role.decorator';
 import { UserRole } from './Enum/user-roles.enum';
+import { ApiOperation, ApiProperty, ApiTags } from '@nestjs/swagger';
 
 @Controller('users')
+@ApiTags('REST API NestJs')
 @UseGuards(AuthGuard(), RolesGuard)
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
   // Endpoint de criação de usuários
   @Post()
+  @ApiOperation({ summary: 'Criar um usário' })
   @Role(UserRole.ADMIN)
   async createAdminUser(
     @Body(ValidationPipe) createUserDto: CreateUserDto,
@@ -43,6 +46,7 @@ export class UsersController {
 
   // Endpoint de buscar de usuários
   @Get(':id')
+  @ApiOperation({ summary: 'Exibir os dados de um usuário pelo ID' })
   @Role(UserRole.ADMIN)
   async findUserById(@Param('id') id): Promise<ReturnUserDto> {
     const user = await this.usersService.findUserById(id);
@@ -54,6 +58,7 @@ export class UsersController {
 
   // Endpoint de atualizar de usuários
   @Patch(':id')
+  @ApiOperation({ summary: 'Atualizar os dados de um usuário por ID' })
   async updateUser(
     @Body(ValidationPipe) updateUserDto: UpdateUserDto,
     @GetUser() user: User,
@@ -70,6 +75,7 @@ export class UsersController {
 
   // Endpoint de deleção
   @Delete(':id')
+  @ApiOperation({ summary: 'Remover um usário' })
   @Role(UserRole.ADMIN)
   async deleteUser(@Param('id') id: string) {
     await this.usersService.deleteUser(id);
@@ -80,6 +86,7 @@ export class UsersController {
 
   // Endpoint de pesquisar
   @Get()
+  @ApiOperation({ summary: 'Pesquisar usuários' })
   @Role(UserRole.ADMIN)
   async findUsers(@Query() query: FindUsersQueryDto) {
     const found = await this.usersService.findUsers(query);

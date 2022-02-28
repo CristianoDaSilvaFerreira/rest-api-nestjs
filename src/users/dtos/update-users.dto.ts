@@ -1,7 +1,9 @@
 import { UserRole } from './../Enum/user-roles.enum';
 import { IsString, IsEmail, IsOptional } from 'class-validator';
+import { ApiProperty } from '@nestjs/swagger';
 export class UpdateUserDto {
   @IsOptional()
+  @ApiProperty()
   @IsString({
     message: 'Informe um nome de usuário válido',
   })
